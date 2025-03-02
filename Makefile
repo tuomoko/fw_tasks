@@ -37,6 +37,11 @@ ROOT=./
 #
 include ${ROOT}/makedefs
 
+# Definitions for the static analysis
+CPPCHECK = cppcheck --enable=all --inconclusive --error-exitcode=1 --force
+CLANG_TIDY = clang-tidy
+ANALYSIS_SRC = led_pwm.c
+
 #
 # Where to find header files that do not live in the source directory.
 #
@@ -77,3 +82,8 @@ CFLAGSgcc=-DTARGET_IS_TM4C123_RB1
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__
 endif
+
+# Static Analysis
+static-analysis:
+	$(CPPCHECK) $(ANALYSIS_SRC) --suppress=missingIncludeSystem --suppress=checkersReport
+	$(CLANG_TIDY) $(ANALYSIS_SRC) -- -I$(ROOT)
