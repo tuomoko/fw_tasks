@@ -32,3 +32,9 @@
 *.app
 *.axf
 *.bin
+
+# Build files
+build/*
+
+# Test build files
+testbuild/*

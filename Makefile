@@ -1,89 +1,114 @@
-#******************************************************************************
-#
-# Makefile - Rules for building the code
-#
-# Copyright (c) 2012-2020 Texas Instruments Incorporated.  All rights reserved.
-# Software License Agreement
-# 
-# Texas Instruments (TI) is supplying this software for use solely and
-# exclusively on TI's microcontroller products. The software is owned by
-# TI and/or its suppliers, and is protected under applicable copyright
-# laws. You may not combine this software with "viral" open-source
-# software in order to form a larger program.
-# 
-# THIS SOFTWARE IS PROVIDED "AS IS" AND WITH ALL FAULTS.
-# NO WARRANTIES, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT
-# NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. TI SHALL NOT, UNDER ANY
-# CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL, OR CONSEQUENTIAL
-# DAMAGES, FOR ANY REASON WHATSOEVER.
-# 
-# This is part of revision 2.2.0.295 of the EK-TM4C123GXL Firmware Package.
-#
-#******************************************************************************
+# Directories
+SRCDIR = src/
+INCDIR = inc/
+BUILDDIR = build/
+TESTDIR = test/
+TIVAWAREDIR = tivaware/
+UNITYDIR = Unity/src/
+TESTBUILDDIR = testbuild/
+TESTRESULTDIR = testbuild/results/
+TESTOBJDIR = testbuild/objs/
 
 #
 # Defines the part type that this project uses.
 #
 PART=TM4C123GH6PM
 
-#
-# The base directory for TivaWare.
-#
-ROOT=./
-
-#
-# Include the common make definitions.
-#
-include ${ROOT}/makedefs
+# ARM GCC toolchain settings
+ARM_PREFIX = arm-none-eabi
+ARM_CC = $(ARM_PREFIX)-gcc
+ARM_LD = $(ARM_PREFIX)-ld
+ARM_AR = $(ARM_PREFIX)-ar
+ARM_OBJCOPY = $(ARM_PREFIX)-objcopy
+ARM_CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -ffunction-sections -fdata-sections -MD -std=c99 -Wall -pedantic -DPART_${PART} -I$(INCDIR) -I$(TIVAWAREDIR) -Os 
+ARM_LDFLAGS = -T led_pwm.ld --entry ResetISR --gc-sections
 
 # Definitions for the static analysis
 CPPCHECK = cppcheck --enable=all --inconclusive --error-exitcode=1 --force
 CLANG_TIDY = clang-tidy
-ANALYSIS_SRC = led_pwm.c
 
-#
-# Where to find header files that do not live in the source directory.
-#
-IPATH=./
+# Get the location of libgcc.a, libc.a and libm.a from the GCC front-end.
+LIBGCC:=${shell ${ARM_CC} ${ARM_CFLAGS} -print-libgcc-file-name}
+LIBC:=${shell ${ARM_CC} ${ARM_CFLAGS} -print-file-name=libc.a}
+LIBM:=${shell ${ARM_CC} ${ARM_CFLAGS} -print-file-name=libm.a}
 
-#
-# The default rule, which causes the blinky example to be built.
-#
-all: ${COMPILER}
-all: ${COMPILER}/led_pwm.axf
+# Source files
+SRC = $(wildcard $(SRCDIR)*.c) 
+OBJ = $(patsubst $(SRCDIR)%.c,$(BUILDDIR)%.o,$(SRC)) ${TIVAWAREDIR}driverlib/gcc/libdriver.a
+SRCFILESFORTEST = src/add.c
+ANALYSIS_SRC = src/led_pwm.c src/add.c 
 
-#
-# The rule to clean out all the build products.
-#
-clean:
-	@rm -rf ${COMPILER} ${wildcard *~}
 
-#
-# The rule to create the target directory.
-#
-${COMPILER}:
-	@mkdir -p ${COMPILER}
+# Test source files
+TESTSRC = $(wildcard $(TESTDIR)*.c)
+TESTOBJ = $(patsubst $(TESTDIR)%.c,$(TESTOBJDIR)%.o,$(TESTSRC))
+TESTSRCOBJ = $(patsubst $(SRCDIR)%.c,$(TESTOBJDIR)%.o,$(SRCFILESFORTEST))
+UNITYOBJ = $(patsubst $(UNITYDIR)%.c,$(TESTOBJDIR)%.o,$(wildcard $(UNITYDIR)*.c))
 
-#
-# Rules for building the blinky example.
-#
-${COMPILER}/led_pwm.axf: ${COMPILER}/led_pwm.o
-${COMPILER}/led_pwm.axf: ${COMPILER}/startup_${COMPILER}.o
-${COMPILER}/led_pwm.axf: ${ROOT}/driverlib/${COMPILER}/libdriver.a
-${COMPILER}/led_pwm.axf: led_pwm.ld
-SCATTERgcc_led_pwm=led_pwm.ld
-ENTRY_led_pwm=ResetISR
-CFLAGSgcc=-DTARGET_IS_TM4C123_RB1
 
-#
-# Include the automatically generated dependency files.
-#
-ifneq (${MAKECMDGOALS},clean)
--include ${wildcard ${COMPILER}/*.d} __dummy__
-endif
+# GCC settings for unit testing
+GCC = gcc
+GCC_CFLAGS = -I$(INCDIR) -I$(UNITYDIR) -I$(SRCDIR) -I$(TIVAWAREDIR) -DTEST
+TESTOBJS = $(patsubst $(PATHTEST)Test%.c,$(PATHTESTRESULT)Test%.txt,$(SRCTEST))
+
+
+# Targets
+TARGET = $(BUILDDIR)firmware.elf
+TESTTARGETS = $(patsubst $(TESTDIR)%.c,$(TESTRESULTDIR)%.txt,$(TESTSRC))
+
+# Default target
+all: $(TARGET)
+
+# Build firmware
+$(TARGET): $(OBJ)
+	$(ARM_LD) $(ARM_LDFLAGS) -o $@ $^ '${LIBM}' '${LIBC}' '${LIBGCC}'
+	$(ARM_OBJCOPY) -O binary $@ $(TARGET:.elf=.bin)
+
+$(BUILDDIR)%.o: $(SRCDIR)%.c
+	@mkdir -p $(BUILDDIR)
+	$(ARM_CC) $(ARM_CFLAGS) -c $< -o $@
+
+# Unit testing
+test: $(TESTTARGETS)
+	@echo "-----------------------\nIGNORES:\n-----------------------"
+	@grep -s IGNORE $(TESTRESULTDIR)*.txt || true
+	@echo "-----------------------\nFAILURES:\n-----------------------"
+	@grep -s FAIL $(TESTRESULTDIR)*.txt || true
+	@echo "-----------------------\nPASSED:\n-----------------------"
+	@grep -s PASS $(TESTRESULTDIR)*.txt || true
+	@echo "\nDONE"
+
+$(TESTRESULTDIR)%.txt: $(TESTBUILDDIR)%.out
+	@mkdir -p $(TESTRESULTDIR)
+	-./$< > $@ 2>&1
+
+$(TESTBUILDDIR)%.out: $(TESTOBJDIR)%.o $(UNITYOBJ) $(TESTSRCOBJ)
+	$(GCC) -o $@ $^
+
+$(TESTOBJDIR)%.o: $(TESTDIR)%.c
+	@mkdir -p $(TESTOBJDIR)
+	$(GCC) $(GCC_CFLAGS) -c $< -o $@
+
+$(TESTOBJDIR)%.o: $(SRCDIR)%.c
+	@mkdir -p $(TESTOBJDIR)
+	$(GCC) $(GCC_CFLAGS) -c $< -o $@
+
+$(TESTOBJDIR)%.o: $(UNITYDIR)%.c
+	@mkdir -p $(TESTOBJDIR)
+	$(GCC) $(GCC_CFLAGS) -c $< -o $@
+
+# Maintain the test results after 'make test'
+.PRECIOUS: $(TESTRESULTDIR)%.txt
 
 # Static Analysis
 static-analysis:
-	$(CPPCHECK) $(ANALYSIS_SRC) --suppress=missingIncludeSystem --suppress=checkersReport
-	$(CLANG_TIDY) $(ANALYSIS_SRC) -- -I$(ROOT)
+	@echo "Running cppcheck..."
+	$(CPPCHECK) $(ANALYSIS_SRC) --suppress=missingIncludeSystem --suppress=checkersReport -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR)
+	@echo "Running clang-tidy..."
+	$(CLANG_TIDY) $(ANALYSIS_SRC) -- -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR)
+
+# Clean up build and test files
+clean:
+	@rm -rf $(BUILDDIR) $(TESTBUILDDIR) $(TESTRESULTDIR)
+
+.PHONY: all test clean debug

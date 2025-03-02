@@ -4,6 +4,7 @@
 #include "inc/hw_types.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
+#include "add.h"
 
 #define LED_PORT GPIO_PORTF_BASE
 #define LED_PIN  GPIO_PIN_2  // Blue LED on PF2
@@ -26,7 +27,7 @@ int main(void) {
     while (1) {
         // Toggle LED
         GPIOPinWrite(LED_PORT, LED_PIN, LED_PIN);
-        delay_ms(500);  // Delay 500ms
+        delay_ms(add(250,250));  // Delay 500ms
         GPIOPinWrite(LED_PORT, LED_PIN, 0);
         delay_ms(500);
     }
