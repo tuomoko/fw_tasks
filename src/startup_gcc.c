@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
+#include "led_pwm.h"
 
 //*****************************************************************************
 //
@@ -82,7 +83,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
     IntDefaultHandler,                      // UART0 Rx and Tx
-    IntDefaultHandler,                      // UART1 Rx and Tx
+    UARTIntHandler,                         // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
     IntDefaultHandler,                      // I2C0 Master and Slave
     IntDefaultHandler,                      // PWM Fault

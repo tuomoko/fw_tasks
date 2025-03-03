@@ -20,11 +20,13 @@ ARM_CC = $(ARM_PREFIX)-gcc
 ARM_LD = $(ARM_PREFIX)-ld
 ARM_AR = $(ARM_PREFIX)-ar
 ARM_OBJCOPY = $(ARM_PREFIX)-objcopy
-ARM_CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -ffunction-sections -fdata-sections -MD -std=c99 -Wall -pedantic -DPART_${PART} -I$(INCDIR) -I$(TIVAWAREDIR) -Os 
+ARM_CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -ffunction-sections -fdata-sections -MD -std=c99 -Wall -pedantic -DPART_${PART} -I$(INCDIR) -I$(TIVAWAREDIR) -Os
 ARM_LDFLAGS = -T led_pwm.ld --entry ResetISR --gc-sections
 
+
+
 # Definitions for the static analysis
-CPPCHECK = cppcheck --enable=all --inconclusive --error-exitcode=1 --force
+CPPCHECK = cppcheck --enable=all --inconclusive --error-exitcode=1
 CLANG_TIDY = clang-tidy
 
 # Get the location of libgcc.a, libc.a and libm.a from the GCC front-end.
@@ -36,7 +38,7 @@ LIBM:=${shell ${ARM_CC} ${ARM_CFLAGS} -print-file-name=libm.a}
 SRC = $(wildcard $(SRCDIR)*.c) 
 OBJ = $(patsubst $(SRCDIR)%.c,$(BUILDDIR)%.o,$(SRC)) ${TIVAWAREDIR}driverlib/gcc/libdriver.a
 SRCFILESFORTEST = src/add.c
-ANALYSIS_SRC = src/led_pwm.c src/add.c 
+ANALYSIS_SRC = src/led_pwm.c src/add.c src/serial_handler.c
 
 
 # Test source files
@@ -103,9 +105,9 @@ $(TESTOBJDIR)%.o: $(UNITYDIR)%.c
 # Static Analysis
 static-analysis:
 	@echo "Running cppcheck..."
-	$(CPPCHECK) $(ANALYSIS_SRC) --suppress=missingIncludeSystem --suppress=checkersReport -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR)
+	$(CPPCHECK) $(ANALYSIS_SRC) --suppress=missingIncludeSystem --suppress=checkersReport --inline-suppr -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR) -DPART_${PART} 
 	@echo "Running clang-tidy..."
-	$(CLANG_TIDY) $(ANALYSIS_SRC) -- -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR)
+	$(CLANG_TIDY) $(ANALYSIS_SRC) -- -I$(INCDIR) -I$(TIVAWAREDIR) -I$(UNITYDIR) -I$(SRCDIR) -DPART_${PART} -std=c99
 
 # Clean up build and test files
 clean:
