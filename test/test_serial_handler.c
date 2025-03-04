@@ -17,7 +17,7 @@ void tearDown(void) {
 
 void test_serial_receive_char_should_start_on_start_char(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     TEST_ASSERT_TRUE(handler.started);
@@ -25,7 +25,7 @@ void test_serial_receive_char_should_start_on_start_char(void) {
 
 void test_serial_receive_char_should_store_data(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     serial_receive_char(&handler, 'A');
@@ -35,7 +35,7 @@ void test_serial_receive_char_should_store_data(void) {
 
 void test_serial_receive_char_should_handle_escape_char(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     serial_receive_char(&handler, ESCAPE_CHAR);
@@ -46,7 +46,7 @@ void test_serial_receive_char_should_handle_escape_char(void) {
 
 void test_serial_receive_char_should_handle_escaped_end_char(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     serial_receive_char(&handler, ESCAPE_CHAR);
@@ -58,7 +58,7 @@ void test_serial_receive_char_should_handle_escaped_end_char(void) {
 
 void test_serial_receive_char_should_handle_two_escape_chars(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     serial_receive_char(&handler, ESCAPE_CHAR);
@@ -69,7 +69,7 @@ void test_serial_receive_char_should_handle_two_escape_chars(void) {
 
 void test_serial_receive_char_should_handle_end_char(void) {
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, NULL);
 
     serial_receive_char(&handler, START_CHAR);
     serial_receive_char(&handler, 'C');

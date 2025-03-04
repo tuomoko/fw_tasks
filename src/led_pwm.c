@@ -19,6 +19,7 @@
 #include "driverlib/gpio.h"
 #include "driverlib/uart.h"
 #include "driverlib/pin_map.h"
+#include "driverlib/pwm.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 
@@ -88,6 +89,23 @@ UARTIntHandler(void) // cppcheck-suppress unusedFunction - this is defined in th
     }
 }
 
+void led_pwm_handler(__uint8_t r, __uint8_t g, __uint8_t b) {
+    // Set the LED colors by PWM
+
+    /*     // Set the LED colors by PWM
+    if((PWMPulseWidthGet(PWM0_BASE, PWM_OUT_0) + g_ui32PWMIncrement) <=
+     ((PWMGenPeriodGet(PWM0_BASE, PWM_GEN_0) * 3) / 4))
+    {
+        PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0,
+                            PWMPulseWidthGet(PWM0_BASE, PWM_GEN_0) +
+                            g_ui32PWMIncrement);
+    }
+    else
+    {
+        PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, g_ui32PWMIncrement);
+    } */
+}
+
 void delay_ms(uint32_t ms);
 
 int main(void) {
@@ -125,7 +143,7 @@ int main(void) {
     //UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
 
     SerialPortHandler handler;
-    init_serial_port_handler(&handler);
+    init_serial_port_handler(&handler, led_pwm_handler);
 
     const char *input = "HELLO\\nWORLD\n";
     for (int i = 0; input[i] != '\0'; ++i) {
