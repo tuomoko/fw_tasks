@@ -27,25 +27,23 @@
 #include "led_pwm.h"
 #include "serial_handler.h"
 
-// LED PIN configuration
-#define LED_R_PORT GPIO_PORTF_BASE
-#define LED_R_PIN  GPIO_PIN_2  // Red LED on PF1
-#define LED_G_PORT GPIO_PORTF_BASE
-#define LED_G_PIN  GPIO_PIN_2  // Green LED on PF3
-#define LED_B_PORT GPIO_PORTF_BASE
-#define LED_B_PIN  GPIO_PIN_2  // Blue LED on PF2
+// LED configuration
+#define LED_R_PWM_OUT PWM_OUT_5
+#define LED_G_PWM_OUT PWM_OUT_7
+#define LED_B_PWM_OUT PWM_OUT_6
 
 // UART configuration
-#define UART_PORT UART1_BASE
 #define BAUD_RATE 9600    // 9600 bps
 
-//*****************************************************************************
-//
-// The UART interrupt handler.
-//
-//*****************************************************************************
-void
-UARTIntHandler(void) // cppcheck-suppress unusedFunction - this is defined in the ISR vector table
+// UART handler
+SerialPortHandler handler;
+
+/**
+ * @brief UART1 interrupt handler.
+ * 
+ * This function is called when a character is received on UART1.
+ */
+void UARTIntHandler(void) // cppcheck-suppress unusedFunction - this is defined in the ISR vector table
 {
     uint32_t ui32Status;
 
@@ -64,50 +62,51 @@ UARTIntHandler(void) // cppcheck-suppress unusedFunction - this is defined in th
     //
     while(UARTCharsAvail(UART1_BASE))
     {
-        //
-        // Read the next character from the UART and write it back to the UART.
-        //
-        UARTCharPutNonBlocking(UART1_BASE,
-                                   UARTCharGetNonBlocking(UART1_BASE));
-
-        //
-        // Blink the LED to show a character transfer is occuring.
-        //
-        GPIOPinWrite(LED_R_PORT, LED_R_PIN, LED_R_PIN);
-
-        //
-        // Delay for 1 millisecond.  Each SysCtlDelay is about 3 clocks.
-        //
-        SysCtlDelay(SysCtlClockGet() / (1000 * 3));
-
-        //
-        // Turn off the LED
-        //
-        GPIOPinWrite(LED_R_PORT, LED_R_PIN, 0);
-
+        serial_receive_char(&handler, UARTCharGetNonBlocking(UART1_BASE));
     }
 }
 
+/**
+ * @brief Handles the PWM signal for the LED.
+ * 
+ * This function sets the PWM signal for the LED based on the received values.
+ * 
+ * @param r The red value.
+ * @param g The green value.
+ * @param b The blue value.
+ */
 void led_pwm_handler(__uint8_t r, __uint8_t g, __uint8_t b) {
-    // Set the LED colors by PWM
-
-    /*     // Set the LED colors by PWM
-    if((PWMPulseWidthGet(PWM0_BASE, PWM_OUT_0) + g_ui32PWMIncrement) <=
-     ((PWMGenPeriodGet(PWM0_BASE, PWM_GEN_0) * 3) / 4))
-    {
-        PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0,
-                            PWMPulseWidthGet(PWM0_BASE, PWM_GEN_0) +
-                            g_ui32PWMIncrement);
-    }
-    else
-    {
-        PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, g_ui32PWMIncrement);
-    } */
+    // Set the LED colors by PWM. As our period is 100, we can use the received values directly.
+    PWMPulseWidthSet(PWM1_BASE, LED_R_PWM_OUT, r);
+    PWMPulseWidthSet(PWM1_BASE, LED_G_PWM_OUT, g);
+    PWMPulseWidthSet(PWM1_BASE, LED_B_PWM_OUT, b);
 }
 
+/**
+ * @brief Sends a character to the UART.
+ * 
+ * This function sends a character to the UART.
+ * 
+ * @param c The character to send.
+ */
+void uart_send_handler(unsigned char c)
+{
+    UARTCharPut(UART1_BASE, c);
+}
+
+/**
+ * @brief Main function.
+ * 
+ * Set up all and start eternal loop.
+ * 
+ * @todo move initializations to separate function(s).
+ */
 int main(void) {
     // Set system clock to 50 MHz
     SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+
+    // Set PWM clock divider to 1
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 
     // Enable clock for Port F & wait for it to be ready
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
@@ -121,32 +120,47 @@ int main(void) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB));
 
-    // Configure PF2 as output (for Blue LED)
-    GPIOPinTypeGPIOOutput(LED_B_PORT, LED_B_PIN);
-
     // Configure UART1 pins
     GPIOPinConfigure(GPIO_PB0_U1RX);
     GPIOPinConfigure(GPIO_PB1_U1TX);
     GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     // Configure UART1
-    UARTConfigSetExpClk(UART_PORT, SysCtlClockGet(), BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+    UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 
-    // Enable UART1 interrupt
+    // Enable the PWM1 peripheral that can drive the LED pins
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_PWM1));
+
+    // Configure the GPIO pad for PWM function on pins PF1, PF3 and PF2.
+    GPIOPinConfigure(GPIO_PF1_M1PWM5); //R
+    GPIOPinConfigure(GPIO_PF3_M1PWM7); //G 
+    GPIOPinConfigure(GPIO_PF2_M1PWM6); //B
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_3);
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2);
+
+    // Configure the PWM1 to generate a PWM signal
+    // PWM_GEN_2 for output 5
+    // PWM_GEN_3 for outputs 6,7
+    PWMGenConfigure(PWM1_BASE, PWM_GEN_2, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
+    PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
+    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_2, 100); // Set period to 100, means 500 Hz PWM signal
+    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, 100); // Set period to 100, means 500 Hz PWM signal
+    PWMPulseWidthSet(PWM1_BASE, LED_R_PWM_OUT, 0); // 0% duty cycle
+    PWMPulseWidthSet(PWM1_BASE, LED_G_PWM_OUT, 0); // 0% duty cycle
+    PWMPulseWidthSet(PWM1_BASE, LED_B_PWM_OUT, 0); // 0% duty cycle
+    PWMOutputState(PWM1_BASE, PWM_OUT_5_BIT | PWM_OUT_7_BIT | PWM_OUT_6_BIT, true);
+    PWMGenEnable(PWM1_BASE, PWM_GEN_2);
+    PWMGenEnable(PWM1_BASE, PWM_GEN_3);
+
+    // Init serial port handler
+    init_serial_port_handler(&handler, led_pwm_handler, uart_send_handler);
+
+    // Enable UART1 interrupt to start receiving data
     IntEnable(INT_UART1);
-    UARTIntEnable(UART_PORT, UART_INT_RX | UART_INT_RT);
+    UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT);
 
-    // Write to UART0
-    //UARTCharPutNonBlocking(UART0_BASE, *pui8Buffer++);
-
-    SerialPortHandler handler;
-    init_serial_port_handler(&handler, led_pwm_handler);
-
-    const char *input = "HELLO\\nWORLD\n";
-    for (int i = 0; input[i] != '\0'; ++i) {
-        serial_receive_char(&handler, input[i]);
-    }
-    
-
+    // Infinite loop
     while (1) {    }
 }

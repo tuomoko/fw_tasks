@@ -16,8 +16,9 @@
  * 
  * @param handler Pointer to the SerialPortHandler structure to initialize.
  */
-void init_serial_port_handler(SerialPortHandler *handler, CommandCallback pwm_callback) {
+void init_serial_port_handler(SerialPortHandler *handler, CommandCallback pwm_callback, UARTSendCallback send_callback) {
     handler->pwm_callback = pwm_callback;
+    handler->send_callback = send_callback;
     handler->buffer_index = 0;
     handler->escape_flag = 0;
     handler->started = 0;
@@ -32,12 +33,13 @@ void init_serial_port_handler(SerialPortHandler *handler, CommandCallback pwm_ca
  * 
  * Decodes the bits and acts accordingly.
  * 
- * @todo This function is called from ISR. The commands should be handled in a separate task.
+ * @todo This function is called from ISR. Ideally the commands should be handled in a separate task.
  * 
  * @param command Pointer to the command string to handle.
  */
 void handle_command(const unsigned char *command, SerialPortHandler *handler) {
     const __uint8_t msg_type = command[0];
+    __uint8_t response[3];
     if (msg_type == MSG_TYPE_REQUEST) {
         const __uint8_t opcode = command[1];
         if (opcode == OPCODE_SET_LED_COLOR) {
@@ -45,9 +47,16 @@ void handle_command(const unsigned char *command, SerialPortHandler *handler) {
             handler->g = command[3];
             handler->b = command[4];
             handler->pwm_callback(handler->r, handler->g, handler->b);
+            response[0] = 1;
+            send_serial_response(handler, response, 1);
+        }
+        else if (opcode == OPCODE_GET_LED_COLOR) {
+            response[0] = handler->r;
+            response[1] = handler->g;
+            response[2] = handler->b;
+            send_serial_response(handler, response, 3);
         }
     }
-
 }
 
 /**
@@ -85,4 +94,25 @@ void serial_receive_char(SerialPortHandler *handler, __uint8_t c) {
             handler->buffer[handler->buffer_index++] = c;
         }
     }
+}
+
+/**
+ * @brief Sends a response over the serial port.
+ * 
+ * This function sends the response data using the UART send callback.
+ * 
+ * @param handler Pointer to the SerialPortHandler structure.
+ * @param response Pointer to the response data to send.
+ * @param length Length of the response data.
+ */
+void send_serial_response(SerialPortHandler *handler, const __uint8_t *response, size_t length) {
+    if (handler->send_callback == NULL) {
+        return;
+    }
+    handler->send_callback(START_CHAR);
+    handler->send_callback(MSG_TYPE_RESPONSE);
+    for (size_t i = 0; i < length; ++i) {
+        handler->send_callback(response[i]);
+    }
+    handler->send_callback(END_CHAR);
 }

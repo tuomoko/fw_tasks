@@ -26,6 +26,7 @@
 #define OPCODE_GET_LED_COLOR 0x01
 
 typedef void (*CommandCallback)(__uint8_t r, __uint8_t g, __uint8_t b);
+typedef void (*UARTSendCallback)(unsigned char c);
 
 typedef struct {
     unsigned char buffer[BUFFER_SIZE];
@@ -33,13 +34,16 @@ typedef struct {
     int escape_flag;
     int started;
     CommandCallback pwm_callback;
+    UARTSendCallback send_callback;
     __uint8_t r;
     __uint8_t g;
     __uint8_t b;
 } SerialPortHandler;
 
-void init_serial_port_handler(SerialPortHandler *handler, CommandCallback pwm_callback);
+void init_serial_port_handler(SerialPortHandler *handler, CommandCallback pwm_callback, UARTSendCallback send_callback);
 void handle_command(const unsigned char *command, SerialPortHandler *handler);
 void serial_receive_char(SerialPortHandler *handler, __uint8_t c);
+void send_serial_response(SerialPortHandler *handler, const __uint8_t *response, size_t length);
+
 
 #endif // SERIAL_HANDLER_H
