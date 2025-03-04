@@ -24,7 +24,6 @@
 #include "driverlib/rom_map.h"
 
 // User libraries
-#include "add.h"
 #include "led_pwm.h"
 #include "serial_handler.h"
 
@@ -106,8 +105,6 @@ void led_pwm_handler(__uint8_t r, __uint8_t g, __uint8_t b) {
     } */
 }
 
-void delay_ms(uint32_t ms);
-
 int main(void) {
     // Set system clock to 50 MHz
     SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
@@ -151,15 +148,5 @@ int main(void) {
     }
     
 
-    while (1) {
-        // Toggle LED
-        GPIOPinWrite(LED_B_PORT, LED_B_PIN, LED_B_PIN);
-        delay_ms(add(250,250));  // Delay 500ms
-        GPIOPinWrite(LED_B_PORT, LED_B_PIN, 0);
-        delay_ms(500);
-    }
-}
-
-void delay_ms(uint32_t ms) {
-    SysCtlDelay((SysCtlClockGet() / 3 / 1000) * ms);
+    while (1) {    }
 }
