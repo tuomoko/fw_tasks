@@ -37,7 +37,7 @@ LIBM:=${shell ${ARM_CC} ${ARM_CFLAGS} -print-file-name=libm.a}
 # Source files
 SRC = $(wildcard $(SRCDIR)*.c) 
 OBJ = $(patsubst $(SRCDIR)%.c,$(BUILDDIR)%.o,$(SRC)) ${TIVAWAREDIR}driverlib/gcc/libdriver.a
-SRCFILESFORTEST = src/add.c
+SRCFILESFORTEST = src/add.c src/serial_handler.c
 ANALYSIS_SRC = src/led_pwm.c src/add.c src/serial_handler.c
 
 

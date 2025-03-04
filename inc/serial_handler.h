@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Tuomo Kohtamäki
+ * 
+ * This file is part of the Serial Handler library.
+ */
+
 #ifndef SERIAL_HANDLER_H
 #define SERIAL_HANDLER_H
 
@@ -10,14 +16,14 @@
 #define ESCAPE_CHAR 0xFD
 
 typedef struct {
-    char buffer[BUFFER_SIZE];
+    unsigned char buffer[BUFFER_SIZE];
     int buffer_index;
     int escape_flag;
     int started;
 } SerialPortHandler;
 
 void init_serial_port_handler(SerialPortHandler *handler);
-void handle_command(const char *command);
+void handle_command(const unsigned char *command);
 void serial_receive_char(SerialPortHandler *handler, __uint8_t c);
 
 #endif // SERIAL_HANDLER_H

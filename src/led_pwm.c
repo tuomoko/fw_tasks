@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Tuomo Kohtamäki
+ * 
+ * This is the main function file, which also includes all device configurations.
+ * 
+ * Based on examples in TiVaWare.
+ */
+
 // Standard libraries
 #include <stdint.h>
 #include <stdbool.h>
@@ -119,10 +127,10 @@ int main(void) {
     SerialPortHandler handler;
     init_serial_port_handler(&handler);
 
-    //const char *input = "HELLO\\nWORLD\n";
-    //for (int i = 0; input[i] != '\0'; ++i) {
-    //    serial_receive_char(&handler, input[i]);
-    //}
+    const char *input = "HELLO\\nWORLD\n";
+    for (int i = 0; input[i] != '\0'; ++i) {
+        serial_receive_char(&handler, input[i]);
+    }
     
 
     while (1) {
